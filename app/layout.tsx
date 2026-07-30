@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Cantarell } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -9,6 +10,11 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const cantarell = Cantarell({
+  weight: ["400", "700"],
   subsets: ["latin"],
 });
 
@@ -23,11 +29,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
-    </html>
-  );
+  <html
+    lang="en"
+    className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+  >
+    <body className="min-h-full flex flex-col">
+      <header className="flex items-center px-4 py-4">
+        <h1 className={`${cantarell.className} text-4xl sm:text-5xl md:text-6xl font-semibold text-foreground hover:text-amber-400 transition-colors duration-200 cursor-pointer`}>
+  StickyDo
+</h1>
+      </header>
+      {children}
+    </body>
+  </html>
+);
 }
