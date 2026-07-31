@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { lato } from "../fonts";
 import NoteStack from "./NoteStack";
+import StickyNote from "./StickyNote";
 import { defaultNoteColor, getRandomNoteColor } from "./noteColors";
+import { NOTE_HALF, NOTE_SIZE } from "./noteSize";
 
 type Note = {
   id: string;
   color: string;
   x: number;
   y: number;
+  text: string;
 };
 
 function isInsideBoard(x: number, y: number, bounds: DOMRect) {
@@ -57,6 +60,7 @@ export default function NotesBoard() {
       color: upcomingColors[0],
       x,
       y,
+      text: "",
     };
     setNotes((prev) => [...prev, newNote]);
     setUpcomingColors((prev) => [...prev.slice(1), getRandomNoteColor()]);
@@ -70,6 +74,16 @@ export default function NotesBoard() {
     });
   }
 
+  function updateNoteText(id: string, text: string) {
+    setNotes((prev) =>
+      prev.map((note) => (note.id === id ? { ...note, text } : note)),
+    );
+  }
+
+  function clearNoteText(id: string) {
+    updateNoteText(id, "");
+  }
+
   function moveNoteTo(id: string, x: number, y: number) {
     setNotes((prev) =>
       prev.map((note) => (note.id === id ? { ...note, x, y } : note)),
@@ -79,8 +93,9 @@ export default function NotesBoard() {
   function finishDrag(clientX: number, clientY: number) {
     const bounds = boardRef.current?.getBoundingClientRect();
     if (bounds && isInsideBoard(clientX, clientY, bounds)) {
-      const x = clamp(clientX - bounds.left - 80, 0, bounds.width - 160);
-      const y = clamp(clientY - bounds.top - 80, 0, bounds.height - 160);
+            const x = clamp(clientX - bounds.left - NOTE_HALF, 0, bounds.width - NOTE_SIZE);
+      const y = clamp(clientY - bounds.top - NOTE_HALF, 0, bounds.height - NOTE_SIZE);
+
       if (movingNoteId) {
         moveNoteTo(movingNoteId, x, y);
       } else {
@@ -95,6 +110,13 @@ export default function NotesBoard() {
     notes.find((note) => note.id === movingNoteId)?.color ?? upcomingColors[0];
   const isDragging = dragPosition !== null;
   const finishDragRef = useRef(finishDrag);
+    useEffect(() => {
+    document.body.style.cursor = isDragging ? "grabbing" : "";
+    return () => {
+      document.body.style.cursor = "";
+    };
+  }, [isDragging]);
+
 
   useEffect(() => {
     finishDragRef.current = finishDrag;
@@ -140,19 +162,30 @@ export default function NotesBoard() {
       {notes
         .filter((note) => note.id !== movingNoteId)
         .map((note) => (
-          <div
+          <StickyNote
             key={note.id}
-            onPointerDown={(event) => handleExistingNoteGrab(event, note.id)}
-            className={`absolute h-40 w-40 cursor-grab touch-none select-none rounded-md ${note.color} shadow-md`}
-            style={{ left: note.x, top: note.y }}
+            id={note.id}
+            color={note.color}
+            x={note.x}
+            y={note.y}
+            text={note.text}
+            onGrab={handleExistingNoteGrab}
+            onSave={updateNoteText}
+            onClear={clearNoteText}
           />
         ))}
-      {dragPosition && (
+                  {dragPosition && (
         <div
-          className={`pointer-events-none fixed h-36 w-36 rotate-12 rounded-md ${draggedColor}`}
-          style={{ left: dragPosition.x - 72, top: dragPosition.y - 72 }}
+          className={`pointer-events-none fixed rotate-12 rounded-md ${draggedColor}`}
+          style={{
+            left: dragPosition.x - NOTE_HALF,
+            top: dragPosition.y - NOTE_HALF,
+            height: NOTE_SIZE,
+            width: NOTE_SIZE,
+          }}
         />
       )}
     </main>
   );
 }
+

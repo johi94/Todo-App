@@ -1,5 +1,7 @@
 "use client";
 
+import { NOTE_SIZE } from "./noteSize";
+
 type NoteStackProps = {
   colors: string[];
   isDragging: boolean;
@@ -14,21 +16,25 @@ export default function NoteStack({
   return (
     <div
       onPointerDown={onGrab}
-      className={`relative h-40 w-40 cursor-grab touch-none select-none transition-transform duration-200 ${
+      style={{ height: NOTE_SIZE, width: NOTE_SIZE }}
+      className={`relative cursor-grab touch-none select-none transition-transform duration-200 ${
         isDragging ? "scale-95 opacity-70" : ""
       }`}
     >
       <div
         suppressHydrationWarning
-        className={`absolute h-36 w-36 rotate-6 rounded-md ${colors[2]}`}
+        style={{ height: NOTE_SIZE, width: NOTE_SIZE }}
+        className={`absolute rotate-6 rounded-md ${colors[2]}`}
       />
       <div
         suppressHydrationWarning
-        className={`absolute h-36 w-36 -rotate-3 rounded-md ${colors[1]}`}
+        style={{ height: NOTE_SIZE, width: NOTE_SIZE }}
+        className={`absolute -rotate-3 rounded-md ${colors[1]}`}
       />
       <div
         suppressHydrationWarning
-        className={`absolute h-36 w-36 rotate-2 rounded-md ${colors[0]}`}
+        style={{ height: NOTE_SIZE, width: NOTE_SIZE }}
+        className={`absolute rotate-2 rounded-md ${colors[0]}`}
       />
     </div>
   );
