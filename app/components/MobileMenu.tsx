@@ -22,7 +22,7 @@ export default function MobileMenu() {
         <Menu className="w-7 h-7" />
       </button>
       {isOpen && (
-        <div className="absolute right-0 mt-2 flex flex-col items-start gap-4 rounded-md bg-slate-800 px-4 pt-10 pb-4 text-lg min-w-45">
+        <div className="absolute right-0 mt-2 flex flex-col items-start gap-4 rounded-md bg-slate-800 px-4 pt-10 pb-4 text-lg min-w-45 z-50">
           <button
             onClick={() => setIsOpen(false)}
             aria-label="Close menu"
