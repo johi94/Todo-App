@@ -9,6 +9,6 @@ export type NavItem = {
 
 export const navItems: NavItem[] = [
   { label: "Dashboard", href: "/", icon: LayoutDashboard },
-  { label: "Trash", href: "#", icon: Trash2 },
-  { label: "Archive", href: "#", icon: Archive },
+  { label: "Trash", href: "/trash", icon: Trash2 },
+  { label: "Archive", href: "/archive", icon: Archive },
 ];
