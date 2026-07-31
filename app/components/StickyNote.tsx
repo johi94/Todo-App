@@ -40,12 +40,12 @@ export default function StickyNote({
 
   return (
     <div
-      className={`absolute flex flex-col gap-1 rounded-md p-2 ${color} shadow-md`}
+      className={`group absolute flex flex-col gap-1 rounded-md p-2 ${color} shadow-md transition-all duration-150 hover:scale-[1.02] hover:shadow-lg`}
       style={{ left: x, top: y, height: NOTE_SIZE, width: NOTE_SIZE }}
     >
       <div
         onPointerDown={(event) => onGrab(event, id)}
-        className="h-4 w-full shrink-0 cursor-grab touch-none select-none rounded bg-black/10"
+        className="h-4 w-full shrink-0 cursor-grab touch-none select-none rounded bg-black/10 transition-colors duration-150 group-hover:bg-black/25"
         aria-label="Drag note"
       />
       <textarea

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { geistSans, geistMono } from "./fonts";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
+import { NotesProvider } from "./components/NotesContext";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -20,11 +21,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="h-dvh flex flex-col">
-        <Header />
-        <div className="flex flex-1 flex-row">
-          <Sidebar />
-          <div className="flex flex-1 flex-col">{children}</div>
-        </div>
+        <NotesProvider>
+          <Header />
+          <div className="flex flex-1 flex-row">
+            <Sidebar />
+            <div className="flex flex-1 flex-col">{children}</div>
+          </div>
+        </NotesProvider>
       </body>
     </html>
   );

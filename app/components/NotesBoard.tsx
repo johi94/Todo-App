@@ -2,20 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { lato } from "../fonts";
+import { Trash2 } from "lucide-react";
 import NoteStack from "./NoteStack";
 import StickyNote from "./StickyNote";
+import { useNotes } from "./NotesContext";
 import { defaultNoteColor, getRandomNoteColor } from "./noteColors";
 import { NOTE_HALF, NOTE_SIZE } from "./noteSize";
 
-type Note = {
-  id: string;
-  color: string;
-  x: number;
-  y: number;
-  text: string;
-};
-
-function isInsideBoard(x: number, y: number, bounds: DOMRect) {
+function isInsideRect(x: number, y: number, bounds: DOMRect) {
   return (
     x >= bounds.left &&
     x <= bounds.right &&
@@ -29,7 +23,7 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export default function NotesBoard() {
-  const [notes, setNotes] = useState<Note[]>([]);
+  const { notes, addNote, updateNote, bringToFront, trashNote } = useNotes();
   const [upcomingColors, setUpcomingColors] = useState(() => [
     defaultNoteColor,
     getRandomNoteColor(),
@@ -42,6 +36,8 @@ export default function NotesBoard() {
   } | null>(null);
 
   const [movingNoteId, setMovingNoteId] = useState<string | null>(null);
+  const [isOverTrash, setIsOverTrash] = useState(false);
+  const trashRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef<HTMLElement>(null);
 
   function handleNoteGrab(event: React.PointerEvent) {
@@ -55,29 +51,18 @@ export default function NotesBoard() {
   }
 
   function addNoteAt(x: number, y: number) {
-    const newNote: Note = {
+    addNote({
       id: crypto.randomUUID(),
       color: upcomingColors[0],
       x,
       y,
       text: "",
-    };
-    setNotes((prev) => [...prev, newNote]);
+    });
     setUpcomingColors((prev) => [...prev.slice(1), getRandomNoteColor()]);
   }
 
-  function bringToFront(id: string) {
-    setNotes((prev) => {
-      const grabbed = prev.find((note) => note.id === id);
-      if (!grabbed) return prev;
-      return [...prev.filter((note) => note.id !== id), grabbed];
-    });
-  }
-
   function updateNoteText(id: string, text: string) {
-    setNotes((prev) =>
-      prev.map((note) => (note.id === id ? { ...note, text } : note)),
-    );
+    updateNote(id, { text });
   }
 
   function clearNoteText(id: string) {
@@ -85,38 +70,57 @@ export default function NotesBoard() {
   }
 
   function moveNoteTo(id: string, x: number, y: number) {
-    setNotes((prev) =>
-      prev.map((note) => (note.id === id ? { ...note, x, y } : note)),
+    updateNote(id, { x, y });
+  }
+
+  function tryTrashDrop(clientX: number, clientY: number) {
+    const trashBounds = trashRef.current?.getBoundingClientRect();
+    if (!movingNoteId || !trashBounds) return false;
+    if (!isInsideRect(clientX, clientY, trashBounds)) return false;
+    trashNote(movingNoteId);
+    return true;
+  }
+
+  function tryPlaceOnBoard(clientX: number, clientY: number) {
+    const bounds = boardRef.current?.getBoundingClientRect();
+    if (!bounds || !isInsideRect(clientX, clientY, bounds)) return;
+    const x = clamp(
+      clientX - bounds.left - NOTE_HALF,
+      0,
+      bounds.width - NOTE_SIZE,
     );
+    const y = clamp(
+      clientY - bounds.top - NOTE_HALF,
+      0,
+      bounds.height - NOTE_SIZE,
+    );
+    if (movingNoteId) {
+      moveNoteTo(movingNoteId, x, y);
+    } else {
+      addNoteAt(x, y);
+    }
   }
 
   function finishDrag(clientX: number, clientY: number) {
-    const bounds = boardRef.current?.getBoundingClientRect();
-    if (bounds && isInsideBoard(clientX, clientY, bounds)) {
-            const x = clamp(clientX - bounds.left - NOTE_HALF, 0, bounds.width - NOTE_SIZE);
-      const y = clamp(clientY - bounds.top - NOTE_HALF, 0, bounds.height - NOTE_SIZE);
-
-      if (movingNoteId) {
-        moveNoteTo(movingNoteId, x, y);
-      } else {
-        addNoteAt(x, y);
-      }
+    if (!tryTrashDrop(clientX, clientY)) {
+      tryPlaceOnBoard(clientX, clientY);
     }
     setDragPosition(null);
     setMovingNoteId(null);
+    setIsOverTrash(false);
   }
 
   const draggedColor =
     notes.find((note) => note.id === movingNoteId)?.color ?? upcomingColors[0];
   const isDragging = dragPosition !== null;
+
   const finishDragRef = useRef(finishDrag);
-    useEffect(() => {
+  useEffect(() => {
     document.body.style.cursor = isDragging ? "grabbing" : "";
     return () => {
       document.body.style.cursor = "";
     };
   }, [isDragging]);
-
 
   useEffect(() => {
     finishDragRef.current = finishDrag;
@@ -126,7 +130,14 @@ export default function NotesBoard() {
     if (!isDragging) return;
     function handleMove(event: PointerEvent) {
       setDragPosition({ x: event.clientX, y: event.clientY });
+      const trashBounds = trashRef.current?.getBoundingClientRect();
+      setIsOverTrash(
+        movingNoteId !== null &&
+          trashBounds !== undefined &&
+          isInsideRect(event.clientX, event.clientY, trashBounds),
+      );
     }
+
     function handleUp(event: PointerEvent) {
       finishDragRef.current(event.clientX, event.clientY);
     }
@@ -136,7 +147,7 @@ export default function NotesBoard() {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
-  }, [isDragging]);
+  }, [isDragging, movingNoteId]);
 
   return (
     <main
@@ -152,13 +163,26 @@ export default function NotesBoard() {
       >
         My ToDos:
       </h1>
-      <div className="absolute bottom-8 right-32">
+      <div className="absolute bottom-8 right-32 flex items-end gap-12">
+        <div
+          ref={trashRef}
+          className={`flex h-50 w-50 items-center justify-center rounded-md border-2 border-dashed transition-colors duration-200 ${
+            isOverTrash
+              ? "border-red-500 text-red-500"
+              : isDragging
+                ? "border-slate-950 text-slate-950"
+                : "border-slate-500 text-slate-400"
+          }`}
+        >
+          <Trash2 className="h-20 w-20" />
+        </div>
         <NoteStack
           colors={upcomingColors}
           isDragging={isDragging && movingNoteId === null}
           onGrab={handleNoteGrab}
         />
       </div>
+
       {notes
         .filter((note) => note.id !== movingNoteId)
         .map((note) => (
@@ -174,9 +198,11 @@ export default function NotesBoard() {
             onClear={clearNoteText}
           />
         ))}
-                  {dragPosition && (
+      {dragPosition && (
         <div
-          className={`pointer-events-none fixed rotate-12 rounded-md ${draggedColor}`}
+          className={`pointer-events-none fixed rotate-12 rounded-md transition-transform duration-150 ${draggedColor} ${
+            isOverTrash ? "scale-50" : "scale-100"
+          }`}
           style={{
             left: dragPosition.x - NOTE_HALF,
             top: dragPosition.y - NOTE_HALF,
@@ -188,4 +214,3 @@ export default function NotesBoard() {
     </main>
   );
 }
-
