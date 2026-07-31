@@ -38,10 +38,17 @@ export default function NotesBoard() {
     y: number;
   } | null>(null);
 
+  const [movingNoteId, setMovingNoteId] = useState<string | null>(null);
   const boardRef = useRef<HTMLElement>(null);
 
   function handleNoteGrab(event: React.PointerEvent) {
     setDragPosition({ x: event.clientX, y: event.clientY });
+  }
+
+  function handleExistingNoteGrab(event: React.PointerEvent, id: string) {
+    setMovingNoteId(id);
+    setDragPosition({ x: event.clientX, y: event.clientY });
+    bringToFront(id);
   }
 
   function addNoteAt(x: number, y: number) {
@@ -55,16 +62,37 @@ export default function NotesBoard() {
     setUpcomingColors((prev) => [...prev.slice(1), getRandomNoteColor()]);
   }
 
+  function bringToFront(id: string) {
+    setNotes((prev) => {
+      const grabbed = prev.find((note) => note.id === id);
+      if (!grabbed) return prev;
+      return [...prev.filter((note) => note.id !== id), grabbed];
+    });
+  }
+
+  function moveNoteTo(id: string, x: number, y: number) {
+    setNotes((prev) =>
+      prev.map((note) => (note.id === id ? { ...note, x, y } : note)),
+    );
+  }
+
   function finishDrag(clientX: number, clientY: number) {
     const bounds = boardRef.current?.getBoundingClientRect();
     if (bounds && isInsideBoard(clientX, clientY, bounds)) {
       const x = clamp(clientX - bounds.left - 80, 0, bounds.width - 160);
       const y = clamp(clientY - bounds.top - 80, 0, bounds.height - 160);
-      addNoteAt(x, y);
+      if (movingNoteId) {
+        moveNoteTo(movingNoteId, x, y);
+      } else {
+        addNoteAt(x, y);
+      }
     }
     setDragPosition(null);
+    setMovingNoteId(null);
   }
 
+  const draggedColor =
+    notes.find((note) => note.id === movingNoteId)?.color ?? upcomingColors[0];
   const isDragging = dragPosition !== null;
   const finishDragRef = useRef(finishDrag);
 
@@ -105,20 +133,23 @@ export default function NotesBoard() {
       <div className="absolute bottom-8 right-32">
         <NoteStack
           colors={upcomingColors}
-          isDragging={isDragging}
+          isDragging={isDragging && movingNoteId === null}
           onGrab={handleNoteGrab}
         />
       </div>
-      {notes.map((note) => (
-        <div
-          key={note.id}
-          className={`absolute h-40 w-40 rounded-md ${note.color} shadow-md`}
-          style={{ left: note.x, top: note.y }}
-        />
-      ))}
+      {notes
+        .filter((note) => note.id !== movingNoteId)
+        .map((note) => (
+          <div
+            key={note.id}
+            onPointerDown={(event) => handleExistingNoteGrab(event, note.id)}
+            className={`absolute h-40 w-40 cursor-grab touch-none select-none rounded-md ${note.color} shadow-md`}
+            style={{ left: note.x, top: note.y }}
+          />
+        ))}
       {dragPosition && (
         <div
-          className={`pointer-events-none fixed h-36 w-36 rotate-12 rounded-md ${upcomingColors[0]}`}
+          className={`pointer-events-none fixed h-36 w-36 rotate-12 rounded-md ${draggedColor}`}
           style={{ left: dragPosition.x - 72, top: dragPosition.y - 72 }}
         />
       )}
