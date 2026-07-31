@@ -1,26 +1,22 @@
 "use client";
 
-import { useRef } from "react";
-
 type NoteStackProps = {
   colors: string[];
+  isDragging: boolean;
+  onGrab: (event: React.PointerEvent) => void;
 };
 
-export default function NoteStack({ colors }: NoteStackProps) {
-  const topNoteRef = useRef<HTMLDivElement>(null);
-
-  function handleDragStart(event: React.DragEvent) {
-    event.dataTransfer.setData("text/plain", "note");
-    if (topNoteRef.current) {
-      event.dataTransfer.setDragImage(topNoteRef.current, 72, 72);
-    }
-  }
-
+export default function NoteStack({
+  colors,
+  isDragging,
+  onGrab,
+}: NoteStackProps) {
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
-      className="relative h-40 w-40 cursor-grab"
+      onPointerDown={onGrab}
+      className={`relative h-40 w-40 cursor-grab touch-none select-none transition-transform duration-200 ${
+        isDragging ? "scale-95 opacity-70" : ""
+      }`}
     >
       <div
         suppressHydrationWarning
@@ -31,15 +27,9 @@ export default function NoteStack({ colors }: NoteStackProps) {
         className={`absolute h-36 w-36 -rotate-3 rounded-md ${colors[1]}`}
       />
       <div
-        ref={topNoteRef}
         suppressHydrationWarning
         className={`absolute h-36 w-36 rotate-2 rounded-md ${colors[0]}`}
       />
     </div>
   );
 }
-
-
-
-
-
