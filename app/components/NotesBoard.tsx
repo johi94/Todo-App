@@ -12,6 +12,19 @@ type Note = {
   y: number;
 };
 
+function isInsideBoard(x: number, y: number, bounds: DOMRect) {
+  return (
+    x >= bounds.left &&
+    x <= bounds.right &&
+    y >= bounds.top &&
+    y <= bounds.bottom
+  );
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
 export default function NotesBoard() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [upcomingColors, setUpcomingColors] = useState(() => [
@@ -19,10 +32,12 @@ export default function NotesBoard() {
     getRandomNoteColor(),
     getRandomNoteColor(),
   ]);
+
   const [dragPosition, setDragPosition] = useState<{
     x: number;
     y: number;
   } | null>(null);
+
   const boardRef = useRef<HTMLElement>(null);
 
   function handleNoteGrab(event: React.PointerEvent) {
@@ -42,19 +57,28 @@ export default function NotesBoard() {
 
   function finishDrag(clientX: number, clientY: number) {
     const bounds = boardRef.current?.getBoundingClientRect();
-    if (bounds) {
-      addNoteAt(clientX - bounds.left - 80, clientY - bounds.top - 80);
+    if (bounds && isInsideBoard(clientX, clientY, bounds)) {
+      const x = clamp(clientX - bounds.left - 80, 0, bounds.width - 160);
+      const y = clamp(clientY - bounds.top - 80, 0, bounds.height - 160);
+      addNoteAt(x, y);
     }
     setDragPosition(null);
   }
 
+  const isDragging = dragPosition !== null;
+  const finishDragRef = useRef(finishDrag);
+
   useEffect(() => {
-    if (!dragPosition) return;
+    finishDragRef.current = finishDrag;
+  });
+
+  useEffect(() => {
+    if (!isDragging) return;
     function handleMove(event: PointerEvent) {
       setDragPosition({ x: event.clientX, y: event.clientY });
     }
     function handleUp(event: PointerEvent) {
-      finishDrag(event.clientX, event.clientY);
+      finishDragRef.current(event.clientX, event.clientY);
     }
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
@@ -62,12 +86,16 @@ export default function NotesBoard() {
       window.removeEventListener("pointermove", handleMove);
       window.removeEventListener("pointerup", handleUp);
     };
-  }, [dragPosition !== null]);
+  }, [isDragging]);
 
   return (
     <main
       ref={boardRef}
-      className="relative flex flex-1 flex-col items-center bg-background font-sans"
+      className={`relative flex flex-1 flex-col items-center border-2 border-dashed font-sans transition-colors duration-200 ${
+        isDragging
+          ? "border-sky-400 bg-slate-600"
+          : "border-transparent bg-background"
+      }`}
     >
       <h1
         className={`${lato.className} text-3xl font-semibold text-foreground`}
@@ -77,7 +105,7 @@ export default function NotesBoard() {
       <div className="absolute bottom-8 right-32">
         <NoteStack
           colors={upcomingColors}
-          isDragging={dragPosition !== null}
+          isDragging={isDragging}
           onGrab={handleNoteGrab}
         />
       </div>
