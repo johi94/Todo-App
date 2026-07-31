@@ -11,7 +11,7 @@ export default function Sidebar() {
 
   return (
     <aside
-      className={`${lato.className} hidden sm:flex sm:w-64 md:w-80 flex-col items-start gap-6 bg-slate-800 pt-15 pb-4 text-xl sm:text-2xl md:text-4xl`}
+      className={`${lato.className} hidden sm:flex sm:w-64 md:w-80 flex-col items-start gap-4 bg-slate-800 pt-15 pb-4 text-xl sm:text-2xl md:text-4xl`}
     >
       {navItems.map((item) => {
         const isActive = pathname === item.href;
