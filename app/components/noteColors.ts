@@ -10,8 +10,10 @@ export const noteColors = [
   "bg-amber-200",
 ];
 
+export const defaultNoteColor = "bg-sky-200";
 
 export function getRandomNoteColor() {
   const index = Math.floor(Math.random() * noteColors.length);
   return noteColors[index];
 }
+
