@@ -1,56 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { lato } from "../fonts";
 import { Trash2 } from "lucide-react";
 import NoteStack from "./NoteStack";
-import StickyNote from "./StickyNote";
+import NoteCard from "./NoteCard";
+import { noteButtonClassName } from "./noteButtonStyle";
 import { useNotes } from "./NotesContext";
 import { defaultNoteColor, getRandomNoteColor } from "./noteColors";
 import { NOTE_HALF, NOTE_SIZE } from "./noteSize";
-
-function isInsideRect(x: number, y: number, bounds: DOMRect) {
-  return (
-    x >= bounds.left &&
-    x <= bounds.right &&
-    y >= bounds.top &&
-    y <= bounds.bottom
-  );
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max);
-}
+import { useNoteDrag } from "../hooks/useNoteDrag";
 
 export default function NotesBoard() {
-  const { notes, addNote, updateNote, bringToFront, trashNote } = useNotes();
+  const { notes, addNote, updateNote, bringToFront, trashNote, archiveNote } =
+    useNotes();
   const [upcomingColors, setUpcomingColors] = useState(() => [
     defaultNoteColor,
     getRandomNoteColor(),
     getRandomNoteColor(),
   ]);
 
-  const [dragPosition, setDragPosition] = useState<{
-    x: number;
-    y: number;
-  } | null>(null);
-
-  const [movingNoteId, setMovingNoteId] = useState<string | null>(null);
-  const [isOverTrash, setIsOverTrash] = useState(false);
-  const trashRef = useRef<HTMLDivElement>(null);
-  const boardRef = useRef<HTMLElement>(null);
-
-  function handleNoteGrab(event: React.PointerEvent) {
-    setDragPosition({ x: event.clientX, y: event.clientY });
+  function updateNoteText(id: string, text: string) {
+    updateNote(id, { text });
   }
 
-  function handleExistingNoteGrab(event: React.PointerEvent, id: string) {
-    setMovingNoteId(id);
-    setDragPosition({ x: event.clientX, y: event.clientY });
+  function clearNoteText(id: string) {
+    updateNoteText(id, "");
+  }
+
+  function handleMove(id: string, x: number, y: number) {
     bringToFront(id);
+    updateNote(id, { x, y });
   }
 
-  function addNoteAt(x: number, y: number) {
+  function handleCreate(x: number, y: number) {
     addNote({
       id: crypto.randomUUID(),
       color: upcomingColors[0],
@@ -61,93 +44,23 @@ export default function NotesBoard() {
     setUpcomingColors((prev) => [...prev.slice(1), getRandomNoteColor()]);
   }
 
-  function updateNoteText(id: string, text: string) {
-    updateNote(id, { text });
-  }
-
-  function clearNoteText(id: string) {
-    updateNoteText(id, "");
-  }
-
-  function moveNoteTo(id: string, x: number, y: number) {
-    updateNote(id, { x, y });
-  }
-
-  function tryTrashDrop(clientX: number, clientY: number) {
-    const trashBounds = trashRef.current?.getBoundingClientRect();
-    if (!movingNoteId || !trashBounds) return false;
-    if (!isInsideRect(clientX, clientY, trashBounds)) return false;
-    trashNote(movingNoteId);
-    return true;
-  }
-
-  function tryPlaceOnBoard(clientX: number, clientY: number) {
-    const bounds = boardRef.current?.getBoundingClientRect();
-    if (!bounds || !isInsideRect(clientX, clientY, bounds)) return;
-    const x = clamp(
-      clientX - bounds.left - NOTE_HALF,
-      0,
-      bounds.width - NOTE_SIZE,
-    );
-    const y = clamp(
-      clientY - bounds.top - NOTE_HALF,
-      0,
-      bounds.height - NOTE_SIZE,
-    );
-    if (movingNoteId) {
-      moveNoteTo(movingNoteId, x, y);
-    } else {
-      addNoteAt(x, y);
-    }
-  }
-
-  function finishDrag(clientX: number, clientY: number) {
-    if (!tryTrashDrop(clientX, clientY)) {
-      tryPlaceOnBoard(clientX, clientY);
-    }
-    setDragPosition(null);
-    setMovingNoteId(null);
-    setIsOverTrash(false);
-  }
-
-  const draggedColor =
-    notes.find((note) => note.id === movingNoteId)?.color ?? upcomingColors[0];
-  const isDragging = dragPosition !== null;
-
-  const finishDragRef = useRef(finishDrag);
-  useEffect(() => {
-    document.body.style.cursor = isDragging ? "grabbing" : "";
-    return () => {
-      document.body.style.cursor = "";
-    };
-  }, [isDragging]);
-
-  useEffect(() => {
-    finishDragRef.current = finishDrag;
+  const {
+    draggingId,
+    dragPosition,
+    isOverTrash,
+    isDragging,
+    trashRef,
+    boardRef,
+    startDragExisting,
+    startDragNew,
+  } = useNoteDrag({
+    onMove: handleMove,
+    onCreate: handleCreate,
+    onTrash: trashNote,
   });
 
-  useEffect(() => {
-    if (!isDragging) return;
-    function handleMove(event: PointerEvent) {
-      setDragPosition({ x: event.clientX, y: event.clientY });
-      const trashBounds = trashRef.current?.getBoundingClientRect();
-      setIsOverTrash(
-        movingNoteId !== null &&
-          trashBounds !== undefined &&
-          isInsideRect(event.clientX, event.clientY, trashBounds),
-      );
-    }
-
-    function handleUp(event: PointerEvent) {
-      finishDragRef.current(event.clientX, event.clientY);
-    }
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleUp);
-    return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
-    };
-  }, [isDragging, movingNoteId]);
+  const draggedColor =
+    notes.find((note) => note.id === draggingId)?.color ?? upcomingColors[0];
 
   return (
     <main
@@ -178,25 +91,41 @@ export default function NotesBoard() {
         </div>
         <NoteStack
           colors={upcomingColors}
-          isDragging={isDragging && movingNoteId === null}
-          onGrab={handleNoteGrab}
+          isDragging={isDragging && draggingId === null}
+          onGrab={startDragNew}
         />
       </div>
 
       {notes
-        .filter((note) => note.id !== movingNoteId)
+        .filter((note) => note.id !== draggingId)
         .map((note) => (
-          <StickyNote
+          <NoteCard
             key={note.id}
-            id={note.id}
             color={note.color}
-            x={note.x}
-            y={note.y}
             text={note.text}
-            onGrab={handleExistingNoteGrab}
-            onSave={updateNoteText}
-            onClear={clearNoteText}
-          />
+            editable
+            onGrab={(event) => startDragExisting(event, note.id)}
+            onTextChange={(text) => updateNoteText(note.id, text)}
+            className="absolute"
+            style={{ left: note.x, top: note.y }}
+          >
+            <button
+              type="button"
+              onClick={() => clearNoteText(note.id)}
+              aria-label="Clear note text"
+              className={noteButtonClassName}
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => archiveNote(note.id)}
+              aria-label="Archive note"
+              className={noteButtonClassName}
+            >
+              Archive
+            </button>
+          </NoteCard>
         ))}
       {dragPosition && (
         <div
